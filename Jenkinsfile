@@ -2,31 +2,43 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = "rishabhraj7/user-profile-docker-app"
+    IMAGE_NAME = 'yourdockerhubusername/user-signup-app'
   }
 
   stages {
-    stage('Clone Repository') {
+    stage('Clone Repo') {
       steps {
-        git 'https://github.com/rishabh-raj-777/user-profile-docker.git'
+        // For Windows-based Jenkins, use `bat` instead of `sh`
+        bat 'git --version'
+        bat 'git clone https://github.com/rishabh-raj-777/user-profile-docker.git'
+        dir('user-profile-docker') {
+          bat 'dir'
+        }
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        script {
-          sh 'docker build -t $IMAGE_NAME .'
+        dir('user-profile-docker') {
+          bat "docker build -t %IMAGE_NAME% ."
         }
       }
     }
 
     stage('Push to Docker Hub') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh '''
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push $IMAGE_NAME
-          '''
+        withCredentials([usernamePassword(
+          credentialsId: 'docker-hub-creds',
+          usernameVariable: 'DOCKER_USER',
+          passwordVariable: 'DOCKER_PASS'
+        )]) {
+          dir('user-profile-docker') {
+            bat """
+              echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+              docker tag user-signup-app %IMAGE_NAME%
+              docker push %IMAGE_NAME%
+            """
+          }
         }
       }
     }
@@ -34,10 +46,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ Pipeline completed successfully!'
+      echo '✅ Build and push successful!'
     }
     failure {
-      echo '❌ Pipeline failed.'
+      echo '❌ Build failed.'
     }
   }
 }
